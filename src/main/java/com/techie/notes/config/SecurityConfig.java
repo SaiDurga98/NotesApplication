@@ -6,10 +6,14 @@ import com.techie.notes.models.Role;
 import com.techie.notes.models.User;
 import com.techie.notes.repository.RoleRepository;
 import com.techie.notes.repository.UserRepository;
+import com.techie.notes.security.services.jwt.AuthEntryPointJwt;
+import com.techie.notes.security.services.jwt.AuthTokenFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,6 +32,14 @@ import static org.springframework.security.config.Customizer.withDefaults;
 //@EnableMethodSecurity(prePostEnabled = true, securedEnabled = true, jsr250Enabled = true)
 public class SecurityConfig {
 
+    @Autowired
+    private AuthEntryPointJwt unauthorizedHandler;
+
+    @Bean
+    public AuthTokenFilter authJwtTokenFilter() {
+        return new AuthTokenFilter();
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf ->
@@ -38,7 +50,12 @@ public class SecurityConfig {
                 -> authorizeRequests
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/csrf-token").permitAll()
+                .requestMatchers("/api/auth/public/**").permitAll()
                 .anyRequest().authenticated());
+        http.exceptionHandling(exception ->
+                exception.authenticationEntryPoint(unauthorizedHandler));
+       //
+        http.addFilterBefore(authJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
        /* http.csrf(csrf -> csrf.disable());
         http.addFilterBefore(new CustomLoggingFilter(), UsernamePasswordAuthenticationFilter.class);
         http.addFilterAfter(new RequestValidationFilter(), CustomLoggingFilter.class);*/
@@ -51,7 +68,14 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+
     @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
+    }
+
+
+        @Bean
         public CommandLineRunner initData(RoleRepository roleRepository,
                                       UserRepository userRepository, PasswordEncoder passwordEncoder) {
         return args -> {

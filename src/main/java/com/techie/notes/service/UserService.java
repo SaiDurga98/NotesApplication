@@ -14,4 +14,6 @@ public interface UserService {
     void updateUserRole(Long userId, String roleName);
 
     UserDTO getUserById(Long userId);
+
+    User findByUsername(String username);
 }

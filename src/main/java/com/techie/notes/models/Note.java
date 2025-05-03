@@ -2,8 +2,10 @@ package com.techie.notes.models;
 
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
+@Data
 public class Note {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -13,22 +15,6 @@ public class Note {
     private String content;
 
     private String ownerUsername;
-
-    public String getContent() {
-        return content;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public String getOwnerUsername() {
-        return ownerUsername;
-    }
-
-    public void setOwnerUsername(String ownerUsername) {
-        this.ownerUsername = ownerUsername;
-    }
 
 
 }

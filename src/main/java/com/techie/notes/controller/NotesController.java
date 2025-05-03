@@ -2,6 +2,7 @@ package com.techie.notes.controller;
 
 
 import com.techie.notes.models.Note;
+import com.techie.notes.service.AuditService;
 import com.techie.notes.service.NoteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,6 +17,7 @@ public class NotesController {
 
     @Autowired
     private NoteService noteService;
+
 
     @PostMapping
     public Note createNote(@RequestBody String content, @AuthenticationPrincipal UserDetails userDetails) {

@@ -2,18 +2,24 @@ package com.techie.notes.service.impl;
 
 import com.techie.notes.dto.UserDTO;
 import com.techie.notes.models.AppRole;
+import com.techie.notes.models.PasswordResetToken;
 import com.techie.notes.models.Role;
 import com.techie.notes.models.User;
+import com.techie.notes.repository.PasswordResetTokenRepository;
 import com.techie.notes.repository.RoleRepository;
 import com.techie.notes.repository.UserRepository;
 import com.techie.notes.service.UserService;
+import com.techie.notes.util.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 
 @Service
@@ -21,8 +27,17 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
 
+    @Value("${frontend.url}")
+    String frontendUrl;
+
     @Autowired
     PasswordEncoder passwordEncoder;
+
+    @Autowired
+    PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Autowired
+    EmailService emailService;
 
     public UserServiceImpl(UserRepository userRepository, RoleRepository roleRepository) {
         this.userRepository = userRepository;
@@ -105,6 +120,43 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Failed to update password");
         }
     }
+
+    @Override
+    public void generatePasswordResetToken(String email){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String token = UUID.randomUUID().toString();
+        Instant expiryDate = Instant.now().plus(24, ChronoUnit.HOURS);
+        PasswordResetToken resetToken = new PasswordResetToken(token, expiryDate, user);
+        passwordResetTokenRepository.save(resetToken);
+
+        String resetUrl = frontendUrl + "/reset-password?token=" + token;
+         emailService.sendEmail(user.getEmail(), resetUrl);
+
+    }
+
+    @Override
+    public void resetPassword(String token, String newPassword) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new RuntimeException("Invalid password reset token"));
+
+        if(resetToken.isUsed()){
+            throw new RuntimeException("Password reset token has already been used");
+        }
+
+        if(resetToken.getExpiryDate().isBefore(Instant.now())){
+            throw new RuntimeException("Password reset token has expired");
+        }
+
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+    }
+
 
 
     private UserDTO convertToUserDTO(User user) {
